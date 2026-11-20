@@ -4,7 +4,7 @@ name: weather_agent
 description: >
   Real-Time Weather Agent for the Telescope Peak area of Death Valley National Park.
   Returns the forecast as numeric risk-model features plus any active National Weather Service alerts.
-llm: watsonx/ibm/granite-3-8b-instruct      # swap for any model enabled in your environment
+llm: bedrock/us.anthropic.claude-sonnet-4-6      # swap for any model enabled in your environment
 style: default
 instructions: >
   You provide weather data for the Telescope Peak area. Always do both steps:
