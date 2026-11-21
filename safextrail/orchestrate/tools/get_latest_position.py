@@ -26,7 +26,7 @@ except ImportError:                      # lets you run/test the file locally wi
         return lambda fn: fn
 
 
-API_URL = os.environ.get("SAFEXTRAIL_API_URL", "https://safextrail.onrender.com/")
+API_URL = os.environ.get("SAFEXTRAIL_API_URL", "https://safextrail.onrender.com")
 STATIONARY_RADIUS_M = 75          # movement smaller than this between fixes counts as "not moving"
 # Planned route as (lat, lon) pairs - export from a GPX file. Empty = off-route check is skipped.
 ROUTE_POINTS = []
@@ -57,7 +57,7 @@ def get_latest_position(expected_return_utc: str = "") -> dict:
         minutes_overdue, off_route_m (-1 if unknown), sos_active and event. On failure: ok=false and error.
     """
     try:
-        r = requests.get(API_URL.rstrip("/") + "/api/location", timeout=15)
+        r = requests.get(API_URL.rstrip("/") + "/api/location", timeout=60)
         r.raise_for_status()
         data = r.json()
     except Exception as exc:
