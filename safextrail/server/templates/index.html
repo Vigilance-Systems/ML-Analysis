@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MapShare Tracker</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f4f5f7; color: #1d2329; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+             padding: 12px 16px; background: #1d2329; color: #fff; }
+    header h1 { font-size: 18px; margin: 0; }
+    .badge { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: #c62828; }
+    main { display: grid; grid-template-columns: 1fr 300px; height: calc(100vh - 52px); }
+    #map { height: 100%; }
+    aside { padding: 16px; overflow-y: auto; background: #fff; border-left: 1px solid #e2e5e9; }
+    aside h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: #6b7480; margin: 0 0 12px; }
+    dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 14px; }
+    dt { color: #6b7480; }
+    dd { margin: 0; font-weight: 500; word-break: break-word; }
+    .status { margin-top: 16px; font-size: 12px; color: #6b7480; }
+    .error { color: #c62828; }
+    button { margin-top: 12px; padding: 8px 12px; border: 0; border-radius: 6px; background: #1d2329; color: #fff; cursor: pointer; }
+    @media (max-width: 720px) {
+      main { grid-template-columns: 1fr; grid-template-rows: 60vh auto; height: auto; }
+      aside { border-left: 0; border-top: 1px solid #e2e5e9; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MapShare Tracker &middot; {{ mapshare_id }}</h1>
+    {% if demo %}<span class="badge">DEMO DATA</span>{% endif %}
+  </header>
+  <main>
+    <div id="map"></div>
+    <aside>
+      <h2>Latest position</h2>
+      <dl>
+        <dt>Lat / Lon</dt><dd id="pos">—</dd>
+        <dt>Time</dt><dd id="time">—</dd>
+        <dt>Elevation</dt><dd id="elev">—</dd>
+        <dt>Speed</dt><dd id="speed">—</dd>
+        <dt>Event</dt><dd id="event">—</dd>
+        <dt>Message</dt><dd id="msg">—</dd>
+      </dl>
+      <button id="refresh">Refresh now</button>
+      <div class="status" id="status">Loading…</div>
+    </aside>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const REFRESH_MS = 60_000;
+    const map = L.map("map").setView([36.65, -121.8], 4);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    const trail = L.polyline([], { color: "#c62828", weight: 3, opacity: 0.5 }).addTo(map);
+    const dot = L.circleMarker([0, 0], {
+      radius: 9, color: "#fff", weight: 2, fillColor: "#e53935", fillOpacity: 1
+    });
+    let firstFix = true;
+
+    const $ = id => document.getElementById(id);
+    const setStatus = (text, isError = false) => {
+      $("status").textContent = text;
+      $("status").className = "status" + (isError ? " error" : "");
+    };
+
+    async function update() {
+      try {
+        const res = await fetch("/api/location");
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Unknown error");
+
+        if (!data.latest) {
+          setStatus("Feed reached, but no points yet. Start tracking or send a check-in from the inReach.");
+          return;
+        }
+
+        const p = data.latest;
+        dot.setLatLng([p.lat, p.lon]).addTo(map)
+           .bindPopup(`<b>${p.name || "inReach"}</b><br>${new Date(p.time_utc).toLocaleString()}`);
+        trail.setLatLngs(data.track);
+
+        if (firstFix) { map.setView([p.lat, p.lon], 13); firstFix = false; }
+
+        $("pos").textContent = `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}`;
+        $("time").textContent = p.time_utc ? new Date(p.time_utc).toLocaleString() : "—";
+        $("elev").textContent = p.elevation || "—";
+        $("speed").textContent = p.velocity || "—";
+        $("event").textContent = p.event || "—";
+        $("msg").textContent = p.message || "—";
+        setStatus(`Updated ${new Date().toLocaleTimeString()} · auto-refresh every ${REFRESH_MS / 1000}s`);
+      } catch (err) {
+        setStatus("Error: " + err.message, true);
+      }
+    }
+
+    $("refresh").addEventListener("click", update);
+    update();
+    setInterval(update, REFRESH_MS);
+  </script>
+</body>
+</html>
