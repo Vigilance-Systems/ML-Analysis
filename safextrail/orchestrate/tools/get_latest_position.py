@@ -26,7 +26,7 @@ except ImportError:                      # lets you run/test the file locally wi
         return lambda fn: fn
 
 
-API_URL = os.environ.get("SAFEXTRAIL_API_URL", "http://host.docker.internal:5000")
+API_URL = os.environ.get("SAFEXTRAIL_API_URL", "https://safextrail.onrender.com/")
 STATIONARY_RADIUS_M = 75          # movement smaller than this between fixes counts as "not moving"
 # Planned route as (lat, lon) pairs - export from a GPX file. Empty = off-route check is skipped.
 ROUTE_POINTS = []

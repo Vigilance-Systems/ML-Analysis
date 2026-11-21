@@ -96,3 +96,19 @@ Your MapShare Flask app with two changes: `/api/location` now returns `points` (
 ## Honest limits to tell judges
 Tiny incident sample; incident-only labels so the score is a relative hazard; reporting bias toward popular routes; rule-based extraction; hiker-state weights are expert-set, not learned.
 The score is decision support with a human approving every dispatch and every message.
+
+## REST API and Orchestrate integration (server/)
+Setup: `cp .env.example server/.env`, fill in `WXO_API_KEY`, `WXO_INSTANCE_URL`, `WXO_RISK_AGENT_ID`, then `cd server && python app.py`.
+Keys live only in `server/.env` (git-ignored) or your host's environment variables, and are read by `server/orchestrate_client.py`. Never put them in `index.html` or `console.js`.
+
+| Route (`/api/v1`) | Purpose |
+|---|---|
+| `GET /health` | Orchestrate configured? demo mode? weather reachable? |
+| `GET /adventurers` | Roster sorted by risk (fast path: local risk engine) |
+| `GET /adventurers/<id>` | Position, telemetry, risk score + breakdown, track |
+| `POST /adventurers/<id>/assess` | Calls the Orchestrate `risk_agent` (slow path), parsed into score / why / context / action / draft |
+| `POST /agent/chat` | Free-form chat with `risk_agent`, keeps the thread |
+| `GET /events` | Risk changes, overdue, stationary, queued actions |
+| `POST /adventurers/<id>/actions/<dispatch\|message\|alert-sar>` | Needs `approved_by`; logged and queued, nothing is sent |
+
+Tests: `python -m tests.test_api` (Orchestrate and Open-Meteo mocked). Not tested against a live Orchestrate instance.

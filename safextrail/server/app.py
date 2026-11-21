@@ -20,6 +20,12 @@ from datetime import datetime, timedelta, timezone
 import requests
 from flask import Flask, jsonify, render_template
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()   # reads server/.env (WXO_API_KEY, WXO_INSTANCE_URL, WXO_RISK_AGENT_ID, MAPSHARE_ID...)
+except ImportError:
+    pass            # pip install python-dotenv to use a .env file; real env vars still work
+
 app = Flask(__name__)
 
 MAPSHARE_ID = os.environ.get("MAPSHARE_ID", "MYLETTERCODE")
@@ -109,12 +115,33 @@ def api_location():
         # SafeXTrail addition: timestamped points so agents can compute "minutes stationary".
         "points": [{"time_utc": p["time_utc"], "lat": p["lat"], "lon": p["lon"],
                     "elevation_m": _num(p["elevation"]), "velocity_kmh": _num(p["velocity"]),
-                    "event": p["event"]} for p in points[-200:]],
+                    "event": p["event"], "course": p["course"], "message": p["message"],
+                    "name": p["name"]} for p in points[-200:]],
         "fetched_at": now.isoformat(),
         "demo": DEMO_MODE,
     }
     _cache.update(time=now, data=data)
     return jsonify(data)
+
+
+# ---- SafeXTrail REST API (/api/v1/*) ------------------------------------------------------
+_pts = {"time": None, "data": []}
+
+
+def get_points():
+    """Parsed MapShare points, cached like /api/location so the console never hammers Garmin."""
+    now = datetime.now(timezone.utc)
+    if _pts["time"] and (now - _pts["time"]).total_seconds() < CACHE_SECONDS:
+        return _pts["data"]
+    try:
+        _pts.update(time=now, data=parse_points(fetch_kml()))
+    except Exception:
+        _pts.update(time=now, data=_pts["data"])   # keep the last good points on a feed error
+    return _pts["data"]
+
+
+from api import register_api  # noqa: E402
+register_api(app, points_provider=get_points, demo=DEMO_MODE)
 
 
 if __name__ == "__main__":
